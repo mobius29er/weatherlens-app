@@ -4,8 +4,12 @@ import { useFonts } from "expo-font";
 import * as SplashScreenModule from "expo-splash-screen";
 import * as Location from "expo-location";
 import Constants from "expo-constants";
-import Purchases from "react-native-purchases";
 import { COLORS } from "./src/theme";
+
+// RevenueCat is native-only — stub on web
+const Purchases = Platform.OS === "web"
+  ? { configure: () => {}, getCustomerInfo: () => Promise.reject(), restorePurchases: () => Promise.reject() }
+  : require("react-native-purchases").default;
 import { getForecast, getClimate, getAccuracy } from "./src/api";
 import { DEFAULT_LOCATION, getWeatherIcon } from "./src/data";
 
@@ -35,8 +39,12 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [subscription, setSubscription] = useState(null);
 
-  // Initialize RevenueCat
+  // In dev mode, bypass paywall entirely
+  const isDev = __DEV__;
+
+  // Initialize RevenueCat (native only)
   useEffect(() => {
+    if (isDev || Platform.OS === "web") return;
     const apiKey = Platform.select({
       ios: Constants.expoConfig?.extra?.revenueCatApiKeyApple,
       android: Constants.expoConfig?.extra?.revenueCatApiKeyGoogle,
@@ -44,7 +52,7 @@ export default function App() {
     if (apiKey) {
       Purchases.configure({ apiKey });
     }
-  }, []);
+  }, [isDev]);
 
   // Request device location
   useEffect(() => {
@@ -73,8 +81,12 @@ export default function App() {
     if (fontsLoaded) await SplashScreenModule.hideAsync();
   }, [fontsLoaded]);
 
-  // Check subscription status
+  // Check subscription status — bypass in dev mode
   const checkSubscription = useCallback(async () => {
+    if (isDev) {
+      setSubscription({ plan: "dev" });
+      return true;
+    }
     try {
       const info = await Purchases.getCustomerInfo();
       if (info.entitlements.active["premium"]) {
@@ -82,10 +94,10 @@ export default function App() {
         return true;
       }
     } catch {
-      // RevenueCat unavailable — allow access during development
+      // RevenueCat unavailable
     }
     return false;
-  }, []);
+  }, [isDev]);
 
   // Fetch data when entering main screens
   useEffect(() => {

@@ -7,9 +7,14 @@ import {
   StyleSheet,
   Linking,
   ActivityIndicator,
+  Platform,
 } from "react-native";
-import Purchases from "react-native-purchases";
 import { COLORS, FONTS } from "../theme";
+
+// RevenueCat is native-only — stub on web/dev
+const Purchases = Platform.OS === "web"
+  ? { getOfferings: () => Promise.reject(), purchasePackage: () => Promise.reject() }
+  : require("react-native-purchases").default;
 
 const PLANS = [
   {
