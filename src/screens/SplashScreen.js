@@ -1,8 +1,8 @@
 import React, { useEffect, useRef } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing, Linking } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing } from "react-native";
 import { COLORS, FONTS } from "../theme";
 
-export default function SplashScreen({ onEnter }) {
+export default function SplashScreen({ onEnter = () => {} }) {
   const spin = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -33,14 +33,6 @@ export default function SplashScreen({ onEnter }) {
 
       <TouchableOpacity style={[s.btn, s.btnGold]} onPress={onEnter} activeOpacity={0.8}>
         <Text style={s.btnGoldText}>▶ ENTER THE WASTELAND</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={[s.btn, s.btnBorder]}
-        onPress={() => Linking.openURL("https://weatherlens.dev/pricing")}
-        activeOpacity={0.8}
-      >
-        <Text style={s.btnBorderText}>◉ GET FREE API KEY</Text>
       </TouchableOpacity>
 
       <Text style={s.powered}>
@@ -106,17 +98,6 @@ const s = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 1,
     color: COLORS.bg,
-  },
-  btnBorder: {
-    backgroundColor: "transparent",
-    borderColor: COLORS.gold,
-  },
-  btnBorderText: {
-    fontFamily: FONTS.mono,
-    fontSize: 13,
-    fontWeight: "700",
-    letterSpacing: 1,
-    color: COLORS.gold,
   },
   powered: {
     fontFamily: FONTS.mono,

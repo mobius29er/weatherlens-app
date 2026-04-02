@@ -1,14 +1,11 @@
 import React, { useState } from "react";
-import { View, Text, ScrollView, StyleSheet, TextInput, Pressable, Linking } from "react-native";
+import { View, Text, ScrollView, StyleSheet, Pressable, Linking, Platform } from "react-native";
 import { COLORS, FONTS } from "../theme";
 import StatusBar, { ScreenHeader } from "../components/Header";
 import BottomNav from "../components/BottomNav";
 import Toggle from "../components/Toggle";
-import { getApiKey, setApiKey } from "../api";
 
-export default function SettingsScreen({ onNav }) {
-  const [key, setKey] = useState(getApiKey());
-  const [editing, setEditing] = useState(false);
+export default function SettingsScreen({ onNav, subscription, location }) {
   const [tempUnit, setTempUnit] = useState("F");
   const [forecastDays, setForecastDays] = useState(16);
   const [scanline, setScanline] = useState(true);
@@ -16,11 +13,14 @@ export default function SettingsScreen({ onNav }) {
   const [dailyBrief, setDailyBrief] = useState(false);
   const [gps, setGps] = useState(false);
 
-  const masked = key ? key.substring(0, 8) + "••••••••" + key.slice(-4) : "No key set";
+  const planLabel = subscription?.plan === "annual" ? "Annual" : subscription?.plan === "lifetime" ? "Lifetime" : "Monthly";
 
-  const saveKey = () => {
-    setApiKey(key);
-    setEditing(false);
+  const openManageSub = () => {
+    const url = Platform.select({
+      ios: "https://apps.apple.com/account/subscriptions",
+      android: "https://play.google.com/store/account/subscriptions",
+    });
+    if (url) Linking.openURL(url);
   };
 
   return (
@@ -29,55 +29,47 @@ export default function SettingsScreen({ onNav }) {
         <StatusBar />
         <ScreenHeader title="COMMAND CENTER" onBack={() => onNav("home")} />
 
-        {/* API Key */}
-        <Text style={s.sectionLabel}>━━ API KEY ━━</Text>
+        {/* Subscription */}
+        <Text style={s.sectionLabel}>━━ YOUR PLAN ━━</Text>
         <View style={s.card}>
-          <Text style={s.label}>Your WeatherLens Key</Text>
-          {editing ? (
-            <View style={s.editRow}>
-              <TextInput
-                style={s.input}
-                value={key}
-                onChangeText={setKey}
-                placeholder="wl_live_..."
-                placeholderTextColor={COLORS.text2}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-              <Pressable style={s.smallBtn} onPress={saveKey}>
-                <Text style={s.smallBtnText}>SAVE</Text>
-              </Pressable>
+          <View style={s.planRow}>
+            <View>
+              <Text style={s.planName}>☢️ {planLabel || "Premium"}</Text>
+              <Text style={s.planStatus}>Active</Text>
             </View>
-          ) : (
-            <Pressable onPress={() => setEditing(true)}>
-              <Text style={s.keyText}>{masked}</Text>
-              <Text style={s.hint}>Tap to edit</Text>
-            </Pressable>
-          )}
+            {subscription?.plan !== "lifetime" && (
+              <Pressable style={s.manageBtn} onPress={openManageSub}>
+                <Text style={s.manageBtnText}>MANAGE</Text>
+              </Pressable>
+            )}
+          </View>
         </View>
 
-        {/* Usage */}
-        <View style={s.card}>
-          <View style={s.usageHeader}>
-            <Text style={s.label}>Today's Usage</Text>
-            <Text style={s.usageCount}>— / 5,000</Text>
+        {/* WeatherLens API Promo */}
+        <Text style={s.sectionLabel}>━━ FOR DEVELOPERS ━━</Text>
+        <View style={s.promoCard}>
+          <Text style={s.promoTitle}>⚡ WEATHERLENS API</Text>
+          <Text style={s.promoTagline}>Build your own weather apps with our data</Text>
+          <View style={s.promoBullets}>
+            <Text style={s.promoBullet}>✦ 16-day blended forecasts (NWS + Open-Meteo)</Text>
+            <Text style={s.promoBullet}>✦ Climate normals & accuracy metrics</Text>
+            <Text style={s.promoBullet}>✦ Historical weather data</Text>
+            <Text style={s.promoBullet}>✦ Free tier: 5,000 requests/day</Text>
           </View>
-          <View style={s.usageBar}>
-            <View style={[s.usageFill, { width: "0%" }]} />
-          </View>
-          <Text style={s.usageHint}>STARTER PLAN · 60 req/min</Text>
+          <Pressable
+            style={s.promoBtn}
+            onPress={() => Linking.openURL("https://weatherlens.dev")}
+          >
+            <Text style={s.promoBtnText}>EXPLORE THE API →</Text>
+          </Pressable>
         </View>
-
-        <Pressable style={s.getKeyBtn} onPress={() => Linking.openURL("https://weatherlens.dev/pricing")}>
-          <Text style={s.getKeyText}>⚡ GET YOUR OWN API KEY →</Text>
-        </Pressable>
 
         {/* Location */}
         <Text style={s.sectionLabel}>━━ LOCATION ━━</Text>
         <View style={s.card}>
           <SettingRow label="Use Device GPS" right={<Toggle value={gps} onChange={setGps} />} />
-          <SettingRow label="Default Location" value="Denver, CO" border />
-          <SettingRow label="Coordinates" value="39.74°N, 104.99°W" border />
+          <SettingRow label="Default Location" value={location?.name || "Denver, CO"} border />
+          <SettingRow label="Coordinates" value={location ? `${location.lat.toFixed(4)}°N, ${Math.abs(location.lon).toFixed(4)}°W` : "39.7392°N, 104.9903°W"} border />
         </View>
 
         {/* Display */}
@@ -161,23 +153,19 @@ const s = StyleSheet.create({
 
   card: { marginHorizontal: 12, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, backgroundColor: COLORS.surface, marginBottom: 4 },
 
-  label: { fontFamily: FONTS.mono, fontSize: 10, fontWeight: "600", color: COLORS.text2, letterSpacing: 0.5 },
-  keyText: { fontFamily: FONTS.mono, fontSize: 13, color: COLORS.gold, marginTop: 6 },
-  hint: { fontFamily: FONTS.mono, fontSize: 9, color: COLORS.text2, marginTop: 4 },
+  planRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 12 },
+  planName: { fontFamily: FONTS.mono, fontSize: 14, fontWeight: "700", color: COLORS.gold, letterSpacing: 0.5 },
+  planStatus: { fontFamily: FONTS.mono, fontSize: 10, color: COLORS.greenBright, marginTop: 2 },
+  manageBtn: { borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, paddingHorizontal: 12, paddingVertical: 6 },
+  manageBtnText: { fontFamily: FONTS.mono, fontSize: 9, fontWeight: "700", color: COLORS.text2, letterSpacing: 0.5 },
 
-  editRow: { flexDirection: "row", gap: 8, marginTop: 8 },
-  input: { flex: 1, fontFamily: FONTS.mono, fontSize: 12, color: COLORS.text, borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 6 },
-  smallBtn: { backgroundColor: COLORS.green, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 6, justifyContent: "center" },
-  smallBtnText: { fontFamily: FONTS.mono, fontSize: 10, fontWeight: "700", color: "#fff" },
-
-  usageHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 10, paddingBottom: 4 },
-  usageCount: { fontFamily: FONTS.mono, fontSize: 12, fontWeight: "700", color: COLORS.text },
-  usageBar: { height: 6, backgroundColor: COLORS.bg, borderRadius: 3, marginHorizontal: 10 },
-  usageFill: { height: 6, backgroundColor: COLORS.green, borderRadius: 3 },
-  usageHint: { fontFamily: FONTS.mono, fontSize: 9, color: COLORS.text2, padding: 10, paddingTop: 4 },
-
-  getKeyBtn: { marginHorizontal: 12, marginVertical: 8, paddingVertical: 10, borderWidth: 1, borderColor: COLORS.gold, borderRadius: 8, alignItems: "center" },
-  getKeyText: { fontFamily: FONTS.mono, fontSize: 11, fontWeight: "700", color: COLORS.gold, letterSpacing: 0.5 },
+  promoCard: { marginHorizontal: 12, borderWidth: 1, borderColor: COLORS.gold, borderRadius: 8, backgroundColor: COLORS.surface2, padding: 14, marginBottom: 4 },
+  promoTitle: { fontFamily: FONTS.mono, fontSize: 14, fontWeight: "900", color: COLORS.gold, letterSpacing: 1, marginBottom: 4 },
+  promoTagline: { fontFamily: FONTS.mono, fontSize: 10, color: COLORS.text2, marginBottom: 10 },
+  promoBullets: { marginBottom: 12 },
+  promoBullet: { fontFamily: FONTS.mono, fontSize: 10, color: COLORS.text, lineHeight: 20 },
+  promoBtn: { backgroundColor: COLORS.gold, paddingVertical: 10, borderRadius: 6, alignItems: "center" },
+  promoBtnText: { fontFamily: FONTS.mono, fontSize: 11, fontWeight: "700", color: COLORS.bg, letterSpacing: 0.5 },
 
   settingRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 10 },
   settingBorder: { borderTopWidth: 1, borderTopColor: COLORS.border },

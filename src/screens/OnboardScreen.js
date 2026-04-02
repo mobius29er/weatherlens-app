@@ -22,6 +22,8 @@ export default function OnboardScreen({ onNext, onSkip }) {
       <TouchableOpacity style={[s.btn, s.btnRed]} onPress={onSkip} activeOpacity={0.8}>
         <Text style={s.btnRedText}>SKIP BRIEFING</Text>
       </TouchableOpacity>
+
+      <Text style={s.powered}>POWERED BY WEATHERLENS.DEV</Text>
     </View>
   );
 }
@@ -72,4 +74,5 @@ const s = StyleSheet.create({
   btnGoldText: { fontFamily: FONTS.mono, fontSize: 13, fontWeight: "700", letterSpacing: 1, color: COLORS.bg },
   btnRed: { backgroundColor: "transparent", borderColor: COLORS.red },
   btnRedText: { fontFamily: FONTS.mono, fontSize: 13, fontWeight: "700", letterSpacing: 1, color: COLORS.red },
+  powered: { fontFamily: FONTS.mono, fontSize: 8, color: COLORS.text2, letterSpacing: 1, marginTop: 12, textAlign: "center" },
 });

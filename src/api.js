@@ -1,15 +1,7 @@
+import Constants from "expo-constants";
+
 const API_BASE = "https://weatherlens.dev/api/v1";
-
-// Pre-configured demo key — get your own at https://weatherlens.dev/pricing
-let API_KEY = "wl_live_b8c13d25938c41fe956ab4d7c453a782";
-
-export function setApiKey(key) {
-  API_KEY = key;
-}
-
-export function getApiKey() {
-  return API_KEY;
-}
+const API_KEY = Constants.expoConfig?.extra?.weatherlensApiKey || "";
 
 async function request(endpoint, params = {}) {
   const url = new URL(`${API_BASE}${endpoint}`);

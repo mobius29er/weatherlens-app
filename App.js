@@ -1,13 +1,17 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { View, ActivityIndicator, StyleSheet } from "react-native";
+import { View, ActivityIndicator, StyleSheet, Platform } from "react-native";
 import { useFonts } from "expo-font";
 import * as SplashScreenModule from "expo-splash-screen";
+import * as Location from "expo-location";
+import Constants from "expo-constants";
+import Purchases from "react-native-purchases";
 import { COLORS } from "./src/theme";
 import { getForecast, getClimate, getAccuracy } from "./src/api";
 import { DEFAULT_LOCATION, getWeatherIcon } from "./src/data";
 
 import SplashScreen from "./src/screens/SplashScreen";
 import OnboardScreen from "./src/screens/OnboardScreen";
+import PaywallScreen from "./src/screens/PaywallScreen";
 import HomeScreen from "./src/screens/HomeScreen";
 import ForecastScreen from "./src/screens/ForecastScreen";
 import EventsScreen from "./src/screens/EventsScreen";
@@ -23,16 +27,65 @@ export default function App() {
   });
 
   const [screen, setScreen] = useState("splash");
-  const [location] = useState(DEFAULT_LOCATION);
+  const [location, setLocation] = useState(DEFAULT_LOCATION);
   const [forecast, setForecast] = useState(null);
   const [climate, setClimate] = useState(null);
   const [accuracy, setAccuracy] = useState(null);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [subscription, setSubscription] = useState(null);
+
+  // Initialize RevenueCat
+  useEffect(() => {
+    const apiKey = Platform.select({
+      ios: Constants.expoConfig?.extra?.revenueCatApiKeyApple,
+      android: Constants.expoConfig?.extra?.revenueCatApiKeyGoogle,
+    });
+    if (apiKey) {
+      Purchases.configure({ apiKey });
+    }
+  }, []);
+
+  // Request device location
+  useEffect(() => {
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === "granted") {
+          const loc = await Location.getCurrentPositionAsync({});
+          const [geo] = await Location.reverseGeocodeAsync({
+            latitude: loc.coords.latitude,
+            longitude: loc.coords.longitude,
+          });
+          setLocation({
+            name: geo ? `${geo.city || geo.subregion}, ${geo.region}` : DEFAULT_LOCATION.name,
+            lat: loc.coords.latitude,
+            lon: loc.coords.longitude,
+          });
+        }
+      } catch {
+        // Location denied or failed — keep default
+      }
+    })();
+  }, []);
 
   const onLayoutRootView = useCallback(async () => {
     if (fontsLoaded) await SplashScreenModule.hideAsync();
   }, [fontsLoaded]);
+
+  // Check subscription status
+  const checkSubscription = useCallback(async () => {
+    try {
+      const info = await Purchases.getCustomerInfo();
+      if (info.entitlements.active["premium"]) {
+        setSubscription({ plan: "active" });
+        return true;
+      }
+    } catch {
+      // RevenueCat unavailable — allow access during development
+    }
+    return false;
+  }, []);
 
   // Fetch data when entering main screens
   useEffect(() => {
@@ -50,6 +103,39 @@ export default function App() {
       });
     }
   }, [screen, forecast, location]);
+
+  // Handle splash "Enter" — check subscription before routing
+  const handleEnter = useCallback(async () => {
+    const active = await checkSubscription();
+    setScreen(active ? "home" : "onboard");
+  }, [checkSubscription]);
+
+  // Handle onboard completion — paywall if not subscribed
+  const handleOnboardComplete = useCallback(async () => {
+    const active = await checkSubscription();
+    setScreen(active ? "home" : "paywall");
+  }, [checkSubscription]);
+
+  // Handle successful subscription
+  const handleSubscribe = useCallback((planId) => {
+    setSubscription({ plan: planId });
+    setScreen("home");
+  }, []);
+
+  // Handle restore purchases
+  const handleRestore = useCallback(async () => {
+    try {
+      const info = await Purchases.restorePurchases();
+      if (info.entitlements.active["premium"]) {
+        setSubscription({ plan: "restored" });
+        setScreen("home");
+        return true;
+      }
+    } catch {
+      // Restore failed
+    }
+    return false;
+  }, []);
 
   const navigate = useCallback((target, data) => {
     if (target === "eventDetail") {
@@ -69,8 +155,19 @@ export default function App() {
 
   return (
     <View style={s.root} onLayout={onLayoutRootView}>
-      {screen === "splash" && <SplashScreen onNav={navigate} />}
-      {screen === "onboard" && <OnboardScreen onNav={navigate} />}
+      {screen === "splash" && <SplashScreen onEnter={handleEnter} />}
+      {screen === "onboard" && (
+        <OnboardScreen
+          onNext={handleOnboardComplete}
+          onSkip={handleOnboardComplete}
+        />
+      )}
+      {screen === "paywall" && (
+        <PaywallScreen
+          onSubscribe={handleSubscribe}
+          onRestore={handleRestore}
+        />
+      )}
       {screen === "home" && (
         <HomeScreen
           location={location}
@@ -111,7 +208,11 @@ export default function App() {
         />
       )}
       {screen === "settings" && (
-        <SettingsScreen onNav={navigate} />
+        <SettingsScreen
+          onNav={navigate}
+          subscription={subscription}
+          location={location}
+        />
       )}
 
       {loading && screen === "home" && (
