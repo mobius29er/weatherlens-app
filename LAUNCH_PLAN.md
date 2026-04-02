@@ -1,6 +1,6 @@
 # WeatherLens App — Production Launch Plan
 
-> **Status:** Not Started  
+> **Status:** Phases 1-3 Implemented  
 > **Target Platforms:** iOS App Store + Google Play Store  
 > **Pricing:** $4.99/mo · $29.99/yr · $99.99 lifetime (7-day free trial)  
 > **Last Updated:** April 2, 2026
@@ -16,42 +16,42 @@ WeatherLens is a retro atomic-age weather app (Expo SDK 54, React Native 0.81) t
 ## Phase 1: API Key Security & EAS Build Setup
 
 ### 1.1 — Convert `app.json` → `app.config.js`
-- [ ] Create `app.config.js` that exports the current `app.json` config as a JS object
-- [ ] Enable reading `process.env` variables at build time
-- [ ] Delete `app.json` after migration
+- [x] Create `app.config.js` that exports the current `app.json` config as a JS object
+- [x] Enable reading `process.env` variables at build time
+- [x] Delete `app.json` after migration
 - **Why:** Dynamic config is required to inject EAS secrets at build time
 
 ### 1.2 — Add App Identifiers
-- [ ] Add `ios.bundleIdentifier: "dev.weatherlens.app"` to config
-- [ ] Add `android.package: "dev.weatherlens.app"` to config
-- [ ] Set initial `ios.buildNumber: "1"` and `android.versionCode: 1`
+- [x] Add `ios.bundleIdentifier: "dev.weatherlens.app"` to config
+- [x] Add `android.package: "dev.weatherlens.app"` to config
+- [x] Set initial `ios.buildNumber: "1"` and `android.versionCode: 1`
 - **Why:** Required for App Store Connect and Google Play Console
 
 ### 1.3 — Create `eas.json` Build Profiles
-- [ ] Create `eas.json` with three profiles:
+- [x] Create `eas.json` with three profiles:
   - `development` — simulator/emulator builds for local testing
   - `preview` — internal distribution builds for TestFlight / internal track
   - `production` — store submission builds
-- [ ] Set `cli.version` and `build.production.autoIncrement` options
+- [x] Set `cli.version` and `build.production.autoIncrement` options
 
 ### 1.4 — Store API Key as EAS Secret
 - [ ] Run: `eas secret:create --name WEATHERLENS_API_KEY --value <key> --scope project`
 - [ ] Run: `eas secret:create --name REVENUECAT_API_KEY_APPLE --value <key> --scope project`
 - [ ] Run: `eas secret:create --name REVENUECAT_API_KEY_GOOGLE --value <key> --scope project`
-- [ ] Expose in `app.config.js` via `extra.weatherlensApiKey: process.env.WEATHERLENS_API_KEY`
+- [x] Expose in `app.config.js` via `extra.weatherlensApiKey: process.env.WEATHERLENS_API_KEY`
 - **Why:** Keys injected at build time, never committed to source
 
 ### 1.5 — Refactor `src/api.js`
-- [ ] Remove hardcoded API key (`wl_live_b8c13d25...`)
-- [ ] Remove `getApiKey()` and `setApiKey()` exports
-- [ ] Install `expo-constants`
-- [ ] Read key from `Constants.expoConfig.extra.weatherlensApiKey`
-- [ ] Add fallback for local development (read from env or provide dev key mechanism)
+- [x] Remove hardcoded API key (`wl_live_b8c13d25...`)
+- [x] Remove `getApiKey()` and `setApiKey()` exports
+- [x] Install `expo-constants`
+- [x] Read key from `Constants.expoConfig.extra.weatherlensApiKey`
+- [x] Add fallback for local development (read from env or provide dev key mechanism)
 - **File:** `src/api.js`
 
 ### 1.6 — Update Settings Screen (API Key → WeatherLens API Promo)
-- [ ] Remove the API key editor (masked input, save button, usage meter)
-- [ ] **Add WeatherLens API advertisement section** in its place:
+- [x] Remove the API key editor (masked input, save button, usage meter)
+- [x] **Add WeatherLens API advertisement section** in its place:
   - Branded "WeatherLens API" banner/card with retro atomic styling
   - Tagline: "Build your own weather apps with our API"
   - Feature bullets: 16-day forecasts, climate normals, accuracy metrics, NWS + Open-Meteo blended data
@@ -61,14 +61,14 @@ WeatherLens is a retro atomic-age weather app (Expo SDK 54, React Native 0.81) t
 - **File:** `src/screens/SettingsScreen.js`
 
 ### 1.7 — Clean Up Splash & Onboard Screens
-- [ ] **SplashScreen:** Remove "Get Free API Key" button (users don't need their own key)
-- [ ] **OnboardScreen:** Remove direct API pricing links; optionally keep a subtle "Powered by WeatherLens API" footer
+- [x] **SplashScreen:** Remove "Get Free API Key" button (users don't need their own key)
+- [x] **OnboardScreen:** Remove direct API pricing links; optionally keep a subtle "Powered by WeatherLens API" footer
 - **Files:** `src/screens/SplashScreen.js`, `src/screens/OnboardScreen.js`
 
 ### 1.8 — Git Hygiene
 - [ ] Delete `.env.local` if it contains a real key
-- [ ] Verify `.gitignore` covers `.env`, `.env.local`, `.env*.local`
-- [ ] Add `eas.json` to version control (it contains no secrets)
+- [x] Verify `.gitignore` covers `.env`, `.env.local`, `.env*.local`
+- [x] Add `eas.json` to version control (it contains no secrets)
 
 ### Phase 1 Verification
 - [ ] `eas build --profile preview --platform ios` succeeds
@@ -81,22 +81,22 @@ WeatherLens is a retro atomic-age weather app (Expo SDK 54, React Native 0.81) t
 ## Phase 2: GPS Location
 
 ### 2.1 — Install `expo-location`
-- [ ] `npx expo install expo-location`
-- [ ] Add plugin config to `app.config.js`
-- [ ] Add `NSLocationWhenInUseUsageDescription` for iOS: "WeatherLens uses your location to provide hyper-local weather forecasts."
-- [ ] Add Android fine/coarse location permissions
+- [x] `npx expo install expo-location`
+- [x] Add plugin config to `app.config.js`
+- [x] Add `NSLocationWhenInUseUsageDescription` for iOS: "WeatherLens uses your location to provide hyper-local weather forecasts."
+- [x] Add Android fine/coarse location permissions
 
 ### 2.2 — Add Location Permission Flow
-- [ ] In `App.js`, after splash, request foreground location permission
-- [ ] If granted → use device coordinates for all API calls
-- [ ] If denied → fall back to `DEFAULT_LAT`/`DEFAULT_LON` from `src/data.js` (Denver)
-- [ ] Store permission state to avoid re-prompting every launch
+- [x] In `App.js`, after splash, request foreground location permission
+- [x] If granted → use device coordinates for all API calls
+- [x] If denied → fall back to `DEFAULT_LAT`/`DEFAULT_LON` from `src/data.js` (Denver)
+- [x] Store permission state to avoid re-prompting every launch
 - **File:** `App.js`
 
 ### 2.3 — Update Location Display
-- [ ] Use `Location.reverseGeocodeAsync()` to get city/state name
-- [ ] Show real location in Settings screen and Home screen header
-- [ ] Keep Denver as the labeled fallback when permission denied
+- [x] Use `Location.reverseGeocodeAsync()` to get city/state name
+- [x] Show real location in Settings screen and Home screen header
+- [x] Keep Denver as the labeled fallback when permission denied
 - **Files:** `src/screens/SettingsScreen.js`, `src/screens/HomeScreen.js`
 
 ### Phase 2 Verification
@@ -145,35 +145,35 @@ WeatherLens is a retro atomic-age weather app (Expo SDK 54, React Native 0.81) t
 - [ ] Set up license testing accounts
 
 ### 3.4 — Install & Initialize RevenueCat SDK
-- [ ] `npx expo install react-native-purchases`
-- [ ] Add RevenueCat plugin to `app.config.js`
-- [ ] In `App.js`, call `Purchases.configure()` on mount with platform-specific API key (from EAS secrets)
+- [x] `npx expo install react-native-purchases`
+- [x] Add RevenueCat plugin to `app.config.js`
+- [x] In `App.js`, call `Purchases.configure()` on mount with platform-specific API key (from EAS secrets)
 - **File:** `App.js`
 
 ### 3.5 — Create Paywall Screen
-- [ ] Create `src/screens/PaywallScreen.js`
-- [ ] Design in retro atomic theme (gold/olive palette, SpaceMono font)
-- [ ] Display all 3 pricing tiers with clear feature descriptions
-- [ ] "7-Day Free Trial" badge on monthly and annual
-- [ ] Highlight annual as "Best Value"
-- [ ] "Restore Purchases" button (REQUIRED by Apple)
-- [ ] Links to Terms of Service and Privacy Policy (REQUIRED by Apple for subscriptions)
-- [ ] Subscription auto-renewal disclosure text (REQUIRED by Apple)
+- [x] Create `src/screens/PaywallScreen.js`
+- [x] Design in retro atomic theme (gold/olive palette, SpaceMono font)
+- [x] Display all 3 pricing tiers with clear feature descriptions
+- [x] "7-Day Free Trial" badge on monthly and annual
+- [x] Highlight annual as "Best Value"
+- [x] "Restore Purchases" button (REQUIRED by Apple)
+- [x] Links to Terms of Service and Privacy Policy (REQUIRED by Apple for subscriptions)
+- [x] Subscription auto-renewal disclosure text (REQUIRED by Apple)
 - **File:** `src/screens/PaywallScreen.js` (NEW)
 
 ### 3.6 — Add Subscription Gate
-- [ ] In `App.js`, after splash: check `Purchases.getCustomerInfo()`
-- [ ] If `premium` entitlement active → route to home
-- [ ] If not active → route to paywall
-- [ ] On successful purchase → route to home
-- [ ] Handle edge cases: expired, billing issue, grace period
+- [x] In `App.js`, after splash: check `Purchases.getCustomerInfo()`
+- [x] If `premium` entitlement active → route to home
+- [x] If not active → route to paywall
+- [x] On successful purchase → route to home
+- [x] Handle edge cases: expired, billing issue, grace period
 - **File:** `App.js`
 
 ### 3.7 — Update Settings Screen (Subscription Management)
-- [ ] Add "Your Plan" section showing current tier and expiry
-- [ ] Add "Manage Subscription" button → deep link to device subscription settings
-- [ ] Add "Restore Purchases" button
-- [ ] Place above the WeatherLens API promo section
+- [x] Add "Your Plan" section showing current tier and expiry
+- [x] Add "Manage Subscription" button → deep link to device subscription settings
+- [x] Add "Restore Purchases" button
+- [x] Place above the WeatherLens API promo section
 - **File:** `src/screens/SettingsScreen.js`
 
 ### Phase 3 Verification
