@@ -1,13 +1,21 @@
 import React from "react";
-import { View, Text, ScrollView, StyleSheet } from "react-native";
+import { View, ScrollView, StyleSheet } from "react-native";
+import Text from "../components/ScaledText";
 import { COLORS, FONTS } from "../theme";
 import StatusBar, { ScreenHeader } from "../components/Header";
 import BottomNav from "../components/BottomNav";
 import { MONTHS } from "../data";
 
-export default function ClimateScreen({ location, climate, todayTemp, onNav }) {
+export default function ClimateScreen({ location, climate, monthlyClimate, todayTemp, onNav }) {
   const now = new Date();
-  const cl = climate || { temperature: { highF: 68, lowF: 40 }, precipitation: { avgInchesPerDay: 0.31 } };
+  const cl = climate || null;
+  const curMonth = now.getMonth();
+  const curMonthData = monthlyClimate?.[curMonth];
+
+  // Use climate API data if available, otherwise fall back to historical monthly
+  const displayHighF = cl?.temperature?.highF ?? curMonthData?.avgHighF;
+  const displayLowF = cl?.temperature?.lowF ?? curMonthData?.avgLowF;
+  const displayPrecip = cl?.precipitation?.avgInchesPerDay ?? curMonthData?.avgPrecipIn;
 
   return (
     <View style={s.container}>
@@ -17,43 +25,52 @@ export default function ClimateScreen({ location, climate, todayTemp, onNav }) {
 
         {/* Hero */}
         <View style={s.hero}>
-          <Text style={s.heroLabel}>{MONTHS[now.getMonth()]} {now.getDate()} · MULTI-YEAR WEIGHTED AVERAGE</Text>
+          <Text style={s.heroLabel}>{MONTHS[now.getMonth()]} {now.getDate()} · {cl ? "CLIMATE NORMAL" : "HISTORICAL AVERAGE"}</Text>
           <View style={s.heroNums}>
             <View style={s.heroCol}>
-              <Text style={s.big}>{Math.round(cl.temperature?.highF || 68)}°</Text>
+              <Text style={s.big}>{displayHighF != null ? Math.round(displayHighF) + "°" : "—"}</Text>
               <Text style={s.heroSmall}>AVG HIGH</Text>
             </View>
             <View style={s.heroCol}>
-              <Text style={s.big}>{Math.round(cl.temperature?.lowF || 40)}°</Text>
+              <Text style={s.big}>{displayLowF != null ? Math.round(displayLowF) + "°" : "—"}</Text>
               <Text style={s.heroSmall}>AVG LOW</Text>
             </View>
             <View style={s.heroCol}>
-              <Text style={s.big}>{(cl.precipitation?.avgInchesPerDay || 0.31).toFixed(2)}"</Text>
+              <Text style={s.big}>{displayPrecip != null ? displayPrecip.toFixed(2) + '"' : "—"}</Text>
               <Text style={s.heroSmall}>AVG PRECIP</Text>
             </View>
           </View>
-          <View style={s.deltaBadge}>
-            <Text style={s.deltaText}>
-              ↑ Today is +{Math.round((todayTemp || 74) - (cl.temperature?.highF || 68))}°F above normal
-            </Text>
-          </View>
+          {displayHighF != null && todayTemp != null && (
+            <View style={s.deltaBadge}>
+              <Text style={s.deltaText}>
+                {todayTemp >= displayHighF ? "↑" : "↓"} Today is {todayTemp >= displayHighF ? "+" : ""}{Math.round(todayTemp - displayHighF)}°F {todayTemp >= displayHighF ? "above" : "below"} normal
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Chart */}
         <Text style={s.sectionLabel}>━━ MONTHLY TEMPERATURE PROFILE ━━</Text>
         <View style={s.chart}>
-          <Text style={s.chartLabel}>AVG HIGH / LOW BY MONTH (°F)</Text>
+          <Text style={s.chartLabel}>AVG HIGH / LOW BY MONTH (°F) · OBSERVED DATA</Text>
           <View style={s.bars}>
             {MONTHS.map((m, i) => {
-              const avgH = 45 + Math.sin((i - 1) * Math.PI / 6) * 30;
-              const avgL = avgH - 22;
-              const isCurrent = i === now.getMonth();
+              const md = monthlyClimate?.[i];
+              const avgH = md ? md.avgHighF * 0.8 : 0;
+              const avgL = md ? md.avgLowF * 0.6 : 0;
+              const isCurrent = i === curMonth;
               return (
                 <View key={m} style={s.barGroup}>
                   <View style={s.barCols}>
-                    <View style={[s.bar, s.barHigh, { height: avgH }]} />
-                    <View style={[s.bar, s.barLow, { height: avgL }]} />
-                    {isCurrent && <View style={[s.bar, s.barNow, { height: avgH + 5 }]} />}
+                    {md ? (
+                      <>
+                        <View style={[s.bar, s.barHigh, { height: Math.max(avgH, 4) }]} />
+                        <View style={[s.bar, s.barLow, { height: Math.max(avgL, 4) }]} />
+                        {isCurrent && <View style={[s.bar, s.barNow, { height: Math.max(avgH + 5, 4) }]} />}
+                      </>
+                    ) : (
+                      <View style={[s.bar, { height: 4, backgroundColor: COLORS.border }]} />
+                    )}
                   </View>
                   <Text style={s.barLabel}>{m.charAt(0)}</Text>
                 </View>
@@ -76,12 +93,13 @@ export default function ClimateScreen({ location, climate, todayTemp, onNav }) {
         {/* Details */}
         <Text style={s.sectionLabel}>━━ CLIMATE DETAILS · {MONTHS[now.getMonth()]} {now.getDate()} ━━</Text>
         <View style={s.detailCard}>
-          <DetailRow label="Avg Precip" value={`${(cl.precipitation?.avgInchesPerDay || 0.31).toFixed(2)} in`} />
-          <DetailRow label="Avg Precip Hours" value={`${(cl.precipitation?.avgHoursPerDay || 2.4).toFixed(1)} hrs`} border />
-          <DetailRow label="Avg Wind" value={`${(cl.wind?.avgMph || 7.8).toFixed(1)} mph`} border />
-          <DetailRow label="Avg Humidity" value={`${cl.humidityPct || 48}%`} border />
-          <DetailRow label="Avg UV Index" value={`${(cl.uvIndex || 6.2).toFixed(1)}`} border />
-          <DetailRow label="Data Source" value="5yr Weighted Avg" valueStyle={s.sourceLink} border />
+          <DetailRow label="Avg Precip" value={displayPrecip != null ? `${displayPrecip.toFixed(3)} in` : "—"} />
+          <DetailRow label="Avg Precip Hours" value={cl?.precipitation?.avgHoursPerDay != null ? `${cl.precipitation.avgHoursPerDay.toFixed(1)} hrs` : "—"} border />
+          <DetailRow label="Avg Wind" value={cl?.wind?.avgMph != null ? `${cl.wind.avgMph.toFixed(1)} mph` : "—"} border />
+          <DetailRow label="Avg Humidity" value={cl?.humidityPct != null ? `${cl.humidityPct}%` : "—"} border />
+          <DetailRow label="Avg UV Index" value={cl?.uvIndex != null ? `${cl.uvIndex.toFixed(1)}` : "—"} border />
+          <DetailRow label="Data Source" value={cl ? "Climate API" : monthlyClimate ? "Historical Obs" : "—"} valueStyle={s.sourceLink} border />
+          {curMonthData && <DetailRow label="Samples" value={`${curMonthData.samples} days`} border />}
         </View>
       </ScrollView>
 

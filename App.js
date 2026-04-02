@@ -4,14 +4,14 @@ import { useFonts } from "expo-font";
 import * as SplashScreenModule from "expo-splash-screen";
 import * as Location from "expo-location";
 import Constants from "expo-constants";
-import { COLORS } from "./src/theme";
+import { COLORS, TextScaleProvider } from "./src/theme";
 
 // RevenueCat is native-only — stub on web
 const Purchases = Platform.OS === "web"
   ? { configure: () => {}, getCustomerInfo: () => Promise.reject(), restorePurchases: () => Promise.reject() }
   : require("react-native-purchases").default;
-import { getForecast, getClimate, getAccuracy } from "./src/api";
-import { DEFAULT_LOCATION, getWeatherIcon } from "./src/data";
+import { getForecast, getClimate, getAccuracy, getHistorical, getNWSAlerts, getHourlyForecast } from "./src/api";
+import { DEFAULT_LOCATION, getWeatherIcon, computeMonthlyAverages, mapNWSAlert } from "./src/data";
 
 import SplashScreen from "./src/screens/SplashScreen";
 import OnboardScreen from "./src/screens/OnboardScreen";
@@ -35,6 +35,9 @@ export default function App() {
   const [forecast, setForecast] = useState(null);
   const [climate, setClimate] = useState(null);
   const [accuracy, setAccuracy] = useState(null);
+  const [monthlyClimate, setMonthlyClimate] = useState(null);
+  const [alerts, setAlerts] = useState([]);
+  const [hourlyData, setHourlyData] = useState(null);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [loading, setLoading] = useState(false);
   const [subscription, setSubscription] = useState(null);
@@ -103,14 +106,33 @@ export default function App() {
   useEffect(() => {
     if (screen === "home" && !forecast) {
       setLoading(true);
+      const today = new Date();
+      const yearAgo = new Date(today);
+      yearAgo.setFullYear(yearAgo.getFullYear() - 1);
+      const fmt = (d) => d.toISOString().split("T")[0];
+
       Promise.allSettled([
         getForecast(location.lat, location.lon, 16),
-        getClimate(location.lat, location.lon),
+        getClimate(location.lat, location.lon, fmt(today)),
         getAccuracy(location.lat, location.lon),
-      ]).then(([fc, cl, ac]) => {
-        if (fc.status === "fulfilled") setForecast(fc.value);
-        if (cl.status === "fulfilled") setClimate(cl.value);
+        getHistorical(location.lat, location.lon, fmt(yearAgo), fmt(today)),
+        getNWSAlerts({ lat: location.lat, lon: location.lon }),
+        getHourlyForecast(location.lat, location.lon, 16),
+      ]).then(([fc, cl, ac, hist, nws, hourly]) => {
+        if (fc.status === "fulfilled") setForecast(fc.value.forecast || []);
+        else console.warn("Forecast fetch failed:", fc.reason?.message);
+        if (cl.status === "fulfilled") {
+          const arr = cl.value.climate || [];
+          setClimate(arr.length ? arr[0] : null);
+        }
         if (ac.status === "fulfilled") setAccuracy(ac.value);
+        if (hist.status === "fulfilled") {
+          setMonthlyClimate(computeMonthlyAverages(hist.value.data || []));
+        }
+        if (nws.status === "fulfilled") {
+          setAlerts((nws.value || []).map(mapNWSAlert));
+        }
+        if (hourly.status === "fulfilled") setHourlyData(hourly.value);
         setLoading(false);
       });
     }
@@ -161,11 +183,12 @@ export default function App() {
   if (!fontsLoaded) return null;
 
   // Build screen props
-  const todayFc = forecast?.forecast?.[0];
-  const todayTemp = todayFc ? todayFc.high_f : 74;
-  const todayIcon = todayFc ? getWeatherIcon(todayFc.wmo_code) : { emoji: "☀️", label: "Clear" };
+  const todayFc = forecast?.[0];
+  const todayTemp = todayFc ? todayFc.temperature?.avgF || Math.round((todayFc.temperature?.highF + todayFc.temperature?.lowF) / 2) : null;
+  const todayIcon = todayFc ? getWeatherIcon(todayFc.conditions?.code) : { icon: "☀️", label: "Clear" };
 
   return (
+    <TextScaleProvider>
     <View style={s.root} onLayout={onLayoutRootView}>
       {screen === "splash" && <SplashScreen onEnter={handleEnter} />}
       {screen === "onboard" && (
@@ -188,14 +211,13 @@ export default function App() {
           accuracy={accuracy}
           todayTemp={todayTemp}
           todayIcon={todayIcon}
+          hourlyData={hourlyData}
           loading={loading}
           onNav={navigate}
         />
       )}
       {screen === "forecast" && (
         <ForecastScreen
-          location={location}
-          forecast={forecast}
           onNav={navigate}
         />
       )}
@@ -208,6 +230,8 @@ export default function App() {
       {screen === "eventDetail" && (
         <EventDetailScreen
           event={selectedEvent}
+          todayFc={todayFc}
+          onBack={() => setScreen("events")}
           onNav={navigate}
         />
       )}
@@ -215,6 +239,7 @@ export default function App() {
         <ClimateScreen
           location={location}
           climate={climate}
+          monthlyClimate={monthlyClimate}
           todayTemp={todayTemp}
           onNav={navigate}
         />
@@ -233,6 +258,7 @@ export default function App() {
         </View>
       )}
     </View>
+    </TextScaleProvider>
   );
 }
 

@@ -1,10 +1,11 @@
 import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, TouchableOpacity, StyleSheet } from "react-native";
+import Text from "./ScaledText";
 import { COLORS, FONTS } from "../theme";
 
 const TABS = [
   { id: "home", icon: "🏠", label: "HOME" },
-  { id: "forecast", icon: "📅", label: "FORECAST" },
+  { id: "forecast", icon: "🧳", label: "TRIP" },
   { id: "events", icon: "🔍", label: "EVENTS" },
   { id: "climate", icon: "📊", label: "CLIMATE" },
   { id: "settings", icon: "⚙", label: "SETTINGS" },

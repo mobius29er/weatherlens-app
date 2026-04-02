@@ -1,11 +1,13 @@
 import React, { useState } from "react";
-import { View, Text, ScrollView, StyleSheet, Pressable, Linking, Platform } from "react-native";
-import { COLORS, FONTS } from "../theme";
+import { View, ScrollView, StyleSheet, Pressable, Linking, Platform } from "react-native";
+import Text from "../components/ScaledText";
+import { COLORS, FONTS, TEXT_SCALE_OPTIONS, useTextScale } from "../theme";
 import StatusBar, { ScreenHeader } from "../components/Header";
 import BottomNav from "../components/BottomNav";
 import Toggle from "../components/Toggle";
 
 export default function SettingsScreen({ onNav, subscription, location }) {
+  const { preference, setPreference, fs } = useTextScale();
   const [tempUnit, setTempUnit] = useState("F");
   const [forecastDays, setForecastDays] = useState(16);
   const [scanline, setScanline] = useState(true);
@@ -107,6 +109,23 @@ export default function SettingsScreen({ onNav, subscription, location }) {
             </View>
           </View>
           <SettingRow label="Scanline Effect" right={<Toggle value={scanline} onChange={setScanline} />} border />
+          <View style={[s.settingRow, s.settingBorder]}>
+            <Text style={s.settingLabel}>Text Size</Text>
+            <View style={s.pills}>
+              {TEXT_SCALE_OPTIONS.map((opt) => (
+                <Pressable
+                  key={opt.value}
+                  style={[s.pill, preference === opt.value && s.pillActive]}
+                  onPress={() => setPreference(opt.value)}
+                >
+                  <Text style={[s.pillText, preference === opt.value && s.pillTextActive]}>{opt.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+          <View style={[s.settingRow, s.settingBorder]}>
+            <Text style={[s.settingLabel, { fontSize: fs(12) }]}>Aa — Preview text at current size</Text>
+          </View>
         </View>
 
         {/* Notifications */}

@@ -1,5 +1,6 @@
 import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, TouchableOpacity, StyleSheet } from "react-native";
+import Text from "../components/ScaledText";
 import { COLORS, FONTS } from "../theme";
 
 export default function OnboardScreen({ onNext, onSkip }) {

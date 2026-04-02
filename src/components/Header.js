@@ -1,14 +1,10 @@
 import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, TouchableOpacity, StyleSheet } from "react-native";
+import Text from "./ScaledText";
 import { COLORS, FONTS } from "../theme";
 
 export default function StatusBar() {
-  return (
-    <View style={s.bar}>
-      <Text style={s.text}>9:41</Text>
-      <Text style={s.text}>▲ ▲ ▲ WiFi ▮▮▮</Text>
-    </View>
-  );
+  return <View style={s.spacer} />;
 }
 
 export function ScreenHeader({ title, right, onBack }) {
@@ -26,18 +22,8 @@ export function ScreenHeader({ title, right, onBack }) {
 }
 
 const s = StyleSheet.create({
-  bar: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
+  spacer: {
     paddingTop: 8,
-    paddingBottom: 4,
-  },
-  text: {
-    fontFamily: FONTS.mono,
-    fontSize: 11,
-    fontWeight: "600",
-    color: COLORS.text2,
   },
   header: {
     flexDirection: "row",

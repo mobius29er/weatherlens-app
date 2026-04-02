@@ -1,21 +1,65 @@
-import React, { useState } from "react";
-import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet } from "react-native";
+import React, { useState, useEffect, useCallback } from "react";
+import { View, ScrollView, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator } from "react-native";
+import Text from "../components/ScaledText";
 import { COLORS, FONTS } from "../theme";
 import { SEVERITY_COLORS } from "../theme";
 import StatusBar from "../components/Header";
 import BottomNav from "../components/BottomNav";
-import { DEMO_EVENTS, EVENT_FILTERS, RADIUS_OPTIONS } from "../data";
+import { EVENT_FILTERS, RADIUS_OPTIONS, mapNWSAlert, extractStateCode, getAreaForRadius } from "../data";
+import { getNWSAlerts } from "../api";
 
-export default function EventsScreen({ location, onSelectEvent, onNav }) {
+export default function EventsScreen({ location, onNav }) {
   const [filter, setFilter] = useState(0);
-  const [radius, setRadius] = useState(0);
+  const [radius, setRadius] = useState(1);         // default 50mi (state-level)
+  const [searchText, setSearchText] = useState("");  // user-typed search location
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  // Derive state code from search text or location
+  const activeLocation = searchText.trim() || location?.name || "";
+  const stateCode = extractStateCode(activeLocation);
+
+  const fetchAlerts = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const area = getAreaForRadius(stateCode, radius);
+      let raw;
+      if (radius === 0 && location?.lat != null) {
+        // 25mi → point query (narrow)
+        raw = await getNWSAlerts({ lat: location.lat, lon: location.lon });
+        // fall back to state if point returns nothing
+        if (raw.length === 0 && stateCode) {
+          raw = await getNWSAlerts({ area: stateCode });
+        }
+      } else if (area) {
+        raw = await getNWSAlerts({ area });
+      } else {
+        // nationwide
+        raw = await getNWSAlerts();
+      }
+      setEvents(raw.map(mapNWSAlert));
+    } catch (e) {
+      console.warn("Events fetch error:", e);
+      setError("Failed to load alerts");
+      setEvents([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [stateCode, radius, location]);
+
+  // Fetch when screen mounts or radius/search changes
+  useEffect(() => { fetchAlerts(); }, [fetchAlerts]);
 
   const filtered = filter === 0
-    ? DEMO_EVENTS
-    : DEMO_EVENTS.filter((e) => {
+    ? events
+    : events.filter((e) => {
         const types = ["", "rain", "storm", "snow", "wind", "fog"];
         return e.type.includes(types[filter]) || types[filter] === "";
       });
+
+  const scopeLabel = radius === 4 ? "Nationwide" : stateCode ? stateCode : "Local";
 
   return (
     <View style={s.container}>
@@ -25,8 +69,17 @@ export default function EventsScreen({ location, onSelectEvent, onNav }) {
 
         {/* Search bar */}
         <View style={s.searchRow}>
-          <TextInput style={s.searchInput} value={location.name} editable={false} />
-          <TouchableOpacity style={s.scanBtn}>
+          <TextInput
+            style={s.searchInput}
+            value={searchText}
+            onChangeText={setSearchText}
+            placeholder={location?.name || "Enter state or city, ST"}
+            placeholderTextColor={COLORS.text2}
+            autoCapitalize="characters"
+            returnKeyType="search"
+            onSubmitEditing={fetchAlerts}
+          />
+          <TouchableOpacity style={s.scanBtn} onPress={fetchAlerts}>
             <Text style={s.scanIcon}>🔍</Text>
           </TouchableOpacity>
         </View>
@@ -59,24 +112,47 @@ export default function EventsScreen({ location, onSelectEvent, onNav }) {
         </View>
 
         <Text style={s.count}>
-          {filtered.length} events detected within {RADIUS_OPTIONS[radius]} · sorted by proximity
+          {loading ? "Loading…" : `${filtered.length} ${filtered.length === 1 ? "alert" : "alerts"} active`} · {scopeLabel} · NWS data
         </Text>
 
+        {loading && (
+          <View style={s.emptyCard}>
+            <ActivityIndicator size="large" color={COLORS.gold} />
+            <Text style={s.emptyText}>Scanning for events…</Text>
+          </View>
+        )}
+
+        {!loading && error && (
+          <View style={s.emptyCard}>
+            <Text style={s.emptyIcon}>⚠️</Text>
+            <Text style={s.emptyTitle}>FETCH ERROR</Text>
+            <Text style={s.emptyText}>{error}</Text>
+          </View>
+        )}
+
+        {!loading && !error && filtered.length === 0 && (
+          <View style={s.emptyCard}>
+            <Text style={s.emptyIcon}>✓</Text>
+            <Text style={s.emptyTitle}>ALL CLEAR</Text>
+            <Text style={s.emptyText}>No active weather alerts for {scopeLabel}.</Text>
+          </View>
+        )}
+
         {/* Event cards */}
-        {filtered.map((ev) => (
+        {!loading && filtered.map((ev) => (
           <TouchableOpacity
             key={ev.id}
             style={s.card}
-            onPress={() => onSelectEvent(ev)}
+            onPress={() => onNav("eventDetail", ev)}
             activeOpacity={0.7}
           >
             <Text style={s.cardIcon}>{ev.icon}</Text>
             <View style={s.cardBody}>
               <Text style={s.cardName}>{ev.name}</Text>
               <View style={s.cardMeta}>
-                <Text style={s.dist}>● {ev.distance} mi {ev.direction}</Text>
+                {ev.distance != null && <Text style={s.dist}>● {ev.distance} mi {ev.direction}</Text>}
                 <Text style={s.eta}>{ev.eta}</Text>
-                <View style={[s.sevBadge, { backgroundColor: SEVERITY_COLORS[ev.severity] }]}>
+                <View style={[s.sevBadge, { backgroundColor: SEVERITY_COLORS[ev.severity] || COLORS.text2 }]}>
                   <Text style={s.sevText}>{ev.severity}</Text>
                 </View>
               </View>
@@ -130,4 +206,9 @@ const s = StyleSheet.create({
   sevText: { fontFamily: FONTS.mono, fontSize: 8, fontWeight: "800", letterSpacing: 0.5, color: COLORS.white },
   cardLoc: { fontFamily: FONTS.mono, fontSize: 9, color: COLORS.text2, marginTop: 2 },
   chevron: { fontFamily: FONTS.mono, fontSize: 18, color: COLORS.text2 },
+
+  emptyCard: { alignItems: "center", marginHorizontal: 12, padding: 32, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 10 },
+  emptyIcon: { fontSize: 36, color: COLORS.greenBright, marginBottom: 8 },
+  emptyTitle: { fontFamily: FONTS.mono, fontSize: 14, fontWeight: "900", letterSpacing: 2, color: COLORS.greenBright },
+  emptyText: { fontFamily: FONTS.mono, fontSize: 11, color: COLORS.text2, marginTop: 4, textAlign: "center" },
 });

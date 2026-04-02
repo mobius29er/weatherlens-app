@@ -1,3 +1,6 @@
+import React, { createContext, useContext, useState, useMemo, useCallback } from "react";
+import { PixelRatio, useWindowDimensions } from "react-native";
+
 // Retro atomic-age color palette & shared styles
 export const COLORS = {
   bg: "#1a1e14",
@@ -29,7 +32,46 @@ export const FONTS = {
   monoFallback: "Courier",
 };
 
-// Shared text styles
+// ── Text Scale Context ──────────────────────────────────────────────
+// Combines in-app preference (Small/Default/Large/Extra Large) with
+// the OS-level fontScale from device accessibility settings and screen width.
+
+export const TEXT_SCALE_OPTIONS = [
+  { label: "Small", value: 0.85 },
+  { label: "Default", value: 1.0 },
+  { label: "Large", value: 1.2 },
+  { label: "Extra Large", value: 1.4 },
+];
+
+const TextScaleContext = createContext({
+  scale: 1,
+  preference: 1.0,
+  setPreference: () => {},
+  fs: (base) => base,
+});
+
+export function TextScaleProvider({ children }) {
+  const [preference, setPreference] = useState(1.0);
+  const { width, fontScale: osFontScale } = useWindowDimensions();
+
+  const value = useMemo(() => {
+    // Device width factor: slightly scale up on tablets, scale down on tiny screens
+    const widthFactor = width < 360 ? 0.9 : width > 600 ? 1.1 : 1.0;
+    // Combine: in-app preference × OS accessibility fontScale × width factor
+    const combined = preference * osFontScale * widthFactor;
+    // fs() helper rounds to nearest pixel for crisp rendering
+    const fs = (base) => PixelRatio.roundToNearestPixel(base * combined);
+    return { scale: combined, preference, setPreference, fs };
+  }, [preference, osFontScale, width]);
+
+  return React.createElement(TextScaleContext.Provider, { value }, children);
+}
+
+export function useTextScale() {
+  return useContext(TextScaleContext);
+}
+
+// Shared text styles (static defaults — screens should use fs() for dynamic sizing)
 export const TEXT = {
   h1: { fontFamily: FONTS.mono, fontSize: 28, fontWeight: "900", letterSpacing: 3, color: COLORS.text },
   h2: { fontFamily: FONTS.mono, fontSize: 16, fontWeight: "900", letterSpacing: 2, color: COLORS.text },

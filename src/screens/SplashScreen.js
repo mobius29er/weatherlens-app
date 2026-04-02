@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing } from "react-native";
+import { View, TouchableOpacity, StyleSheet, Animated, Easing } from "react-native";
+import Text from "../components/ScaledText";
 import { COLORS, FONTS } from "../theme";
 
 export default function SplashScreen({ onEnter = () => {} }) {

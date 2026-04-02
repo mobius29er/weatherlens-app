@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import {
   View,
-  Text,
   TouchableOpacity,
   ScrollView,
   StyleSheet,
@@ -9,6 +8,7 @@ import {
   ActivityIndicator,
   Platform,
 } from "react-native";
+import Text from "../components/ScaledText";
 import { COLORS, FONTS } from "../theme";
 
 // RevenueCat is native-only — stub on web/dev

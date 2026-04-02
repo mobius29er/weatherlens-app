@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
-import { View, Text, ScrollView, StyleSheet, Animated, Easing } from "react-native";
+import { View, ScrollView, StyleSheet, Animated, Easing } from "react-native";
+import Text from "../components/ScaledText";
 import { COLORS, FONTS, SEVERITY_COLORS } from "../theme";
 import StatusBar, { ScreenHeader } from "../components/Header";
 import BottomNav from "../components/BottomNav";
@@ -22,7 +23,7 @@ export default function EventDetailScreen({ event, todayFc, onBack, onNav }) {
 
   if (!event) return null;
 
-  const fc = todayFc || { temperature: { highF: 67 }, precipitation: { amountIn: 0.45 } };
+  const fc = todayFc || {};
 
   return (
     <View style={s.container}>
@@ -32,7 +33,7 @@ export default function EventDetailScreen({ event, todayFc, onBack, onNav }) {
           title="EVENT DETAIL"
           onBack={onBack}
           right={
-            <View style={[s.sevBadge, { backgroundColor: SEVERITY_COLORS[event.severity] }]}>
+            <View style={[s.sevBadge, { backgroundColor: SEVERITY_COLORS[event.severity] || COLORS.text2 }]}>
               <Text style={s.sevText}>{event.severity}</Text>
             </View>
           }
@@ -42,28 +43,56 @@ export default function EventDetailScreen({ event, todayFc, onBack, onNav }) {
         <View style={s.hero}>
           <Text style={s.heroIcon}>{event.icon}</Text>
           <Text style={s.heroName}>{event.name.toUpperCase()}</Text>
-          <Text style={s.heroLoc}>{event.location} · {event.detail}</Text>
+          <Text style={s.heroLoc}>{event.location}{event.detail ? ` · ${event.detail}` : ""}</Text>
         </View>
 
-        {/* Stats grid */}
+        {/* Stats grid — adapt to available data */}
         <View style={s.statsGrid}>
+          {event.distance != null && (
+            <View style={s.statCard}>
+              <Text style={s.statVal}>{event.distance} mi</Text>
+              <Text style={s.statLabel}>DISTANCE {event.direction || ""}</Text>
+            </View>
+          )}
           <View style={s.statCard}>
-            <Text style={s.statVal}>{event.distance} mi</Text>
-            <Text style={s.statLabel}>DISTANCE {event.direction}</Text>
+            <Text style={s.statVal}>{event.eta || "—"}</Text>
+            <Text style={s.statLabel}>STATUS</Text>
           </View>
-          <View style={s.statCard}>
-            <Text style={s.statVal}>{event.eta}</Text>
-            <Text style={s.statLabel}>ETA TO YOU</Text>
-          </View>
-          <View style={s.statCard}>
-            <Text style={s.statVal}>{event.speed} mph</Text>
-            <Text style={s.statLabel}>STORM SPEED</Text>
-          </View>
-          <View style={s.statCard}>
-            <Text style={s.statVal}>{event.precipProb}%</Text>
-            <Text style={s.statLabel}>PRECIP PROB</Text>
-          </View>
+          {event.speed != null && (
+            <View style={s.statCard}>
+              <Text style={s.statVal}>{event.speed} mph</Text>
+              <Text style={s.statLabel}>STORM SPEED</Text>
+            </View>
+          )}
+          {event.urgency && (
+            <View style={s.statCard}>
+              <Text style={s.statVal}>{event.urgency}</Text>
+              <Text style={s.statLabel}>URGENCY</Text>
+            </View>
+          )}
+          {event.certainty && (
+            <View style={s.statCard}>
+              <Text style={s.statVal}>{event.certainty}</Text>
+              <Text style={s.statLabel}>CERTAINTY</Text>
+            </View>
+          )}
+          {event.precipProb != null && (
+            <View style={s.statCard}>
+              <Text style={s.statVal}>{event.precipProb}%</Text>
+              <Text style={s.statLabel}>PRECIP PROB</Text>
+            </View>
+          )}
         </View>
+
+        {/* Alert description (from NWS) */}
+        {event.description && (
+          <>
+            <Text style={s.sectionLabel}>━━ ALERT DETAILS ━━</Text>
+            <View style={s.dataCard}>
+              <Text style={s.alertDesc}>{event.description}</Text>
+            </View>
+          </>
+        )}
 
         {/* Radar */}
         <Text style={s.sectionLabel}>━━ RADAR POSITION ━━</Text>
@@ -82,17 +111,29 @@ export default function EventDetailScreen({ event, todayFc, onBack, onNav }) {
         </View>
 
         {/* Forecast data */}
-        <Text style={s.sectionLabel}>━━ FORECAST DATA · WEATHERLENS API ━━</Text>
-        <View style={s.dataCard}>
-          <View style={s.dataRow}>
-            <Text style={s.dataLabel}>High Temp</Text>
-            <Text style={s.dataVal}>{Math.round(fc.temperature?.highF || 67)}°F</Text>
-          </View>
-          <View style={[s.dataRow, s.dataRowBorder]}>
-            <Text style={s.dataLabel}>Precipitation</Text>
-            <Text style={s.dataVal}>{fc.precipitation?.amountIn || 0.45} in expected</Text>
-          </View>
-        </View>
+        {fc.temperature && (
+          <>
+            <Text style={s.sectionLabel}>━━ FORECAST DATA · WEATHERLENS API ━━</Text>
+            <View style={s.dataCard}>
+              <View style={s.dataRow}>
+                <Text style={s.dataLabel}>High Temp</Text>
+                <Text style={s.dataVal}>{Math.round(fc.temperature?.highF || 0)}°F</Text>
+              </View>
+              {fc.precipitation?.amountIn != null && (
+                <View style={[s.dataRow, s.dataRowBorder]}>
+                  <Text style={s.dataLabel}>Precipitation</Text>
+                  <Text style={s.dataVal}>{fc.precipitation.amountIn} in expected</Text>
+                </View>
+              )}
+              {fc.wind?.speedMph != null && (
+                <View style={[s.dataRow, s.dataRowBorder]}>
+                  <Text style={s.dataLabel}>Wind</Text>
+                  <Text style={s.dataVal}>{fc.wind.direction} {fc.wind.speedMph} mph</Text>
+                </View>
+              )}
+            </View>
+          </>
+        )}
       </ScrollView>
 
       <BottomNav active="events" onNav={onNav} />
@@ -149,4 +190,5 @@ const s = StyleSheet.create({
   dataRowBorder: { borderTopWidth: 1, borderTopColor: COLORS.border },
   dataLabel: { fontFamily: FONTS.mono, fontSize: 11, color: COLORS.text2 },
   dataVal: { fontFamily: FONTS.mono, fontSize: 11, fontWeight: "700", color: COLORS.gold2 },
+  alertDesc: { fontFamily: FONTS.mono, fontSize: 10, color: COLORS.text, lineHeight: 16, padding: 12 },
 });
